@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEM Path Analysis Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .value-display {
+            margin-top: 5px;
+            text-align: center;
+            color: #333;
+        }
+
+        #visualization {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .effects {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+        }
+
+        .effects-group h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .effects-value {
+            margin: 5px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SEM Path Analysis Visualization</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="x1">X1 Value:</label>
+                <input type="range" id="x1" min="0" max="100" value="50">
+                <div class="value-display" id="x1-value">50</div>
+            </div>
+            <div class="control-group">
+                <label for="x2">X2 Value:</label>
+                <input type="range" id="x2" min="0" max="100" value="50">
+                <div class="value-display" id="x2-value">50</div>
+            </div>
+        </div>
+
+        <div id="visualization"></div>
+
+        <div class="effects">
+            <div class="effects-group">
+                <h3>Direct Effects</h3>
+                <div class="effects-value" id="direct-x1">X1 → Y: 0.000</div>
+                <div class="effects-value" id="direct-x2">X2 → Y: 0.000</div>
+            </div>
+            <div class="effects-group">
+                <h3>Indirect Effects</h3>
+                <div class="effects-value" id="indirect-x1">X1 → M → Y: 0.000</div>
+                <div class="effects-value" id="indirect-x2">X2 → M → Y: 0.000</div>
+            </div>
+            <div class="effects-group">
+                <h3>Total Effects</h3>
+                <div class="effects-value" id="total-x1">X1 Total: 0.000</div>
+                <div class="effects-value" id="total-x2">X2 Total: 0.000</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Path coefficients
+        const coefficients = {
+            x1_to_m: 0.5,
+            x2_to_m: 0.3,
+            m_to_y: 0.4,
+            x1_to_y: 0.2,
+            x2_to_y: 0.25
+        };
+
+        // Initialize SVG
+        const width = document.getElementById('visualization').clientWidth;
+        const height = 500;
+        const svg = d3.select('#visualization')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        // Define arrow marker
+        svg.append('defs').append('marker')
+            .attr('id', 'arrowhead')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 8)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', '#666');
+
+        // Variable positions
+        const positions = {
+            x1: { x: 100, y: 100 },
+            x2: { x: 100, y: 400 },
+            m: { x: 400, y: 250 },
+            y: { x: 700, y: 250 }
+        };
+
+        // Draw paths
+        const paths = svg.append('g').attr('class', 'paths');
+        
+        // X1 to M
+        paths.append('path')
+            .attr('d', `M${positions.x1.x + 40},${positions.x1.y} Q${(positions.x1.x + positions.m.x)/2},${(positions.x1.y + positions.m.y)/2} ${positions.m.x-40},${positions.m.y}`)
+            .attr('stroke', '#666')
+            .attr('fill', 'none')
+            .attr('marker-end', 'url(#arrowhead)');
+
+        // X2 to M
+        paths.append('path')
+            .attr('d', `M${positions.x2.x + 40},${positions.x2.y} Q${(positions.x2.x + positions.m.x)/2},${(positions.x2.y + positions.m.y)/2} ${positions.m.x-40},${positions.m.y}`)
+            .attr('stroke', '#666')
+            .attr('fill', 'none')
+            .attr('marker-end', 'url(#arrowhead)');
+
+        // M to Y
+        paths.append('path')
+            .attr('d', `M${positions.m.x + 40},${positions.m.y} L${positions.y.x-40},${positions.y.y}`)
+            .attr('stroke', '#666')
+            .attr('fill', 'none')
+            .attr('marker-end', 'url(#arrowhead)');
+
+        // Add coefficients text
+        svg.append('text')
+            .attr('x', (positions.x1.x + positions.m.x)/2)
+            .attr('y', (positions.x1.y + positions.m.y)/2 - 10)
+            .text(coefficients.x1_to_m)
+            .attr('text-anchor', 'middle');
+
+        svg.append('text')
+            .attr('x', (positions.x2.x + positions.m.x)/2)
+            .attr('y', (positions.x2.y + positions.m.y)/2 + 10)
+            .text(coefficients.x2_to_m)
+            .attr('text-anchor', 'middle');
+
+        svg.append('text')
+            .attr('x', (positions.m.x + positions.y.x)/2)
+            .attr('y', positions.m.y - 10)
+            .text(coefficients.m_to_y)
+            .attr('text-anchor', 'middle');
+
+        // Create circles group
+        const circles = svg.append('g').attr('class', 'circles');
+
+        // Initialize circles
+        const circleData = [
+            { id: 'x1', x: positions.x1.x, y: positions.x1.y, color: '#4CAF50', label: 'X1' },
+            { id: 'x2', x: positions.x2.x, y: positions.x2.y, color: '#2196F3', label: 'X2' },
+            { id: 'm', x: positions.m.x, y: positions.m.y, color: '#FFC107', label: 'M' },
+            { id: 'y', x: positions.y.x, y: positions.y.y, color: '#FF5722', label: 'Y' }
+        ];
+
+        // Draw circles and labels
+        circleData.forEach(d => {
+            circles.append('circle')
+                .attr('id', d.id)
+                .attr('cx', d.x)
+                .attr('cy', d.y)
+                .attr('r', 40)
+                .attr('fill', d.color)
+                .attr('opacity', 0.7);
+
+            circles.append('text')
+                .attr('x', d.x)
+                .attr('y', d.y)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', 'middle')
+                .attr('fill', 'white')
+                .text(d.label);
+        });
+
+        // Update function
+        function updateVisualization() {
+            const x1Value = parseFloat(document.getElementById('x1').value);
+            const x2Value = parseFloat(document.getElementById('x2').value);
+
+            // Update value displays
+            document.getElementById('x1-value').textContent = x1Value.toFixed(1);
+            document.getElementById('x2-value').textContent = x2Value.toFixed(1);
+
+            // Calculate M and Y values
+            const mValue = x1Value * coefficients.x1_to_m + x2Value * coefficients.x2_to_m;
+            const yValue = x1Value * coefficients.x1_to_y + x2Value * coefficients.x2_to_y + 
+                          mValue * coefficients.m_to_y;
+
+            // Update circle sizes
+            const getRadius = (value) => Math.max(20, Math.min(60, 20 + value * 0.4));
+
+            d3.select('#x1').attr('r', getRadius(x1Value));
+            d3.select('#x2').attr('r', getRadius(x2Value));
+            d3.select('#m').attr('r', getRadius(mValue));
+            d3.select('#y').attr('r', getRadius(yValue));
+
+            // Calculate effects
+            const directX1 = coefficients.x1_to_y;
+            const directX2 = coefficients.x2_to_y;
+            const indirectX1 = coefficients.x1_to_m * coefficients.m_to_y;
+            const indirectX2 = coefficients.x2_to_m * coefficients.m_to_y;
+            const totalX1 = directX1 + indirectX1;
+            const totalX2 = directX2 + indirectX2;
+
+            // Update effects display
+            document.getElementById('direct-x1').textContent = `X1 → Y: ${directX1.toFixed(3)}`;
+            document.getElementById('direct-x2').textContent = `X2 → Y: ${directX2.toFixed(3)}`;
+            document.getElementById('indirect-x1').textContent = `X1 → M → Y: ${indirectX1.toFixed(3)}`;
+            document.getElementById('indirect-x2').textContent = `X2 → M → Y: ${indirectX2.toFixed(3)}`;
+            document.getElementById('total-x1').textContent = `X1 Total: ${totalX1.toFixed(3)}`;
+            document.getElementById('total-x2').textContent = `X2 Total: ${totalX2.toFixed(3)}`;
+        }
+
+        // Add event listeners
+        document.getElementById('x1').addEventListener('input', updateVisualization);
+        document.getElementById('x2').addEventListener('input', updateVisualization);
+
+        // Initial update
+        updateVisualization();
+    </script>
+</body>
+</html>
