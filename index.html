@@ -351,29 +351,72 @@
 
         function updateRegressionFormulas() {
             const formulaDisplay = document.getElementById('formula-display');
-            formulaDisplay.innerHTML = '';
             
-            // Group relationships by target variable
-            const targetGroups = {};
-            relationships.forEach(rel => {
-                if (!targetGroups[rel.target.name]) {
-                    targetGroups[rel.target.name] = [];
+            // Find all dependent variables (variables that have arrows pointing to them)
+            const dependentVars = new Set(relationships.map(rel => rel.target.name));
+            
+            // Find all independent variables (variables that have arrows coming from them)
+            const independentVars = new Set(relationships.map(rel => rel.source.name));
+            
+            // Final dependent variables are those that are never sources
+            const finalDependentVars = new Set([...dependentVars].filter(v => !independentVars.has(v)));
+            
+            // Create comprehensive formula
+            let formula = '';
+            
+            // If we have both mediators and final DVs, show the complete system
+            if (finalDependentVars.size > 0) {
+                // First, show equations for mediators (variables that are both dependent and independent)
+                const mediators = new Set([...dependentVars].filter(v => independentVars.has(v)));
+                
+                if (mediators.size > 0) {
+                    formula += 'Mediator equations:\n';
+                    mediators.forEach(mediator => {
+                        const mediatorRelations = relationships.filter(rel => rel.target.name === mediator);
+                        formula += `${mediator} = ` + mediatorRelations.map(rel => 
+                            `${rel.coefficient >= 0 ? '+' : ''}${rel.coefficient}${rel.source.name}`
+                        ).join(' ').replace('= +', '= ') + '\n';
+                    });
+                    formula += '\n';
                 }
-                targetGroups[rel.target.name].push({
-                    source: rel.source.name,
-                    coefficient: rel.coefficient
+                
+                // Then show final DV equations
+                formula += 'Final equation:\n';
+                finalDependentVars.forEach(dv => {
+                    // Get direct effects
+                    const directEffects = relationships.filter(rel => rel.target.name === dv);
+                    formula += `${dv} = ` + directEffects.map(rel => 
+                        `${rel.coefficient >= 0 ? '+' : ''}${rel.coefficient}${rel.source.name}`
+                    ).join(' ').replace('= +', '= ');
+                    
+                    // Calculate and add indirect effects through mediators
+                    mediators.forEach(mediator => {
+                        const pathsToMediator = relationships.filter(rel => rel.target.name === mediator);
+                        const mediatorToDV = relationships.find(rel => 
+                            rel.source.name === mediator && rel.target.name === dv
+                        );
+                        
+                        if (mediatorToDV) {
+                            pathsToMediator.forEach(path => {
+                                const indirectEffect = path.coefficient * mediatorToDV.coefficient;
+                                if (indirectEffect !== 0) {
+                                    formula += `\n  + (${path.coefficient} × ${mediatorToDV.coefficient})${path.source.name} [via ${mediator}]`;
+                                }
+                            });
+                        }
+                    });
                 });
-            });
+            } else {
+                // Simple regression case
+                dependentVars.forEach(dv => {
+                    const relations = relationships.filter(rel => rel.target.name === dv);
+                    formula += `${dv} = ` + relations.map(rel => 
+                        `${rel.coefficient >= 0 ? '+' : ''}${rel.coefficient}${rel.source.name}`
+                    ).join(' ').replace('= +', '= ');
+                });
+            }
             
-            // Create formula for each target variable
-            Object.entries(targetGroups).forEach(([targetName, sources]) => {
-                let formula = `${targetName} = `;
-                formula += sources.map(s => 
-                    `${s.coefficient >= 0 ? '+' : ''}${s.coefficient}${s.source}`
-                ).join(' ');
-                formula = formula.replace('= +', '= '); // Remove first + if present
-                formulaDisplay.innerHTML += formula + '<br>';
-            });
+            formulaDisplay.innerHTML = formula || 'Add relationships to see the formula';
         }
 
         function updateCalculations() {
