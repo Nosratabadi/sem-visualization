@@ -61,6 +61,25 @@
 
         .variable-list {
             margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .formula-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .formula-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .formula-content {
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
         .variable-item {
@@ -135,6 +154,12 @@
         </div>
         <div class="variable-list" id="variable-list">
             <!-- Variables will be listed here -->
+        </div>
+        <div class="formula-section">
+            <div class="formula-title">Regression Formulas:</div>
+            <div class="formula-content" id="formula-display">
+                <!-- Formulas will be displayed here -->
+            </div>
         </div>
     </div>
     <div class="main-content">
@@ -253,16 +278,18 @@
                 .attr('fill', 'none')
                 .attr('marker-end', 'url(#arrowhead)');
 
-            links.append('text')
+                            links.append('text')
                 .attr('x', d => (d.source.x + d.target.x) / 2)
                 .attr('y', d => (d.source.y + d.target.y) / 2 - 10)
                 .attr('text-anchor', 'middle')
                 .text(d => d.coefficient || '')
+                .style('cursor', 'pointer')
                 .on('click', function(event, d) {
                     const coeff = prompt('Enter coefficient:', d.coefficient || '0');
                     if (coeff !== null) {
                         d.coefficient = parseFloat(coeff);
                         updateCalculations();
+                        updateRegressionFormulas();
                         drawVariables();
                     }
                 });
@@ -305,17 +332,48 @@
                 if (!selectedVariable) {
                     selectedVariable = d;
                 } else if (selectedVariable !== d) {
-                    relationships.push({
-                        source: selectedVariable,
-                        target: d,
-                        coefficient: 0
-                    });
-                    selectedVariable = null;
-                    drawingMode = false;
-                    document.getElementById('drawing-mode-indicator').style.display = 'none';
-                    drawVariables();
+                    const coefficient = prompt("Enter the path coefficient:", "0");
+                    if (coefficient !== null) {
+                        relationships.push({
+                            source: selectedVariable,
+                            target: d,
+                            coefficient: parseFloat(coefficient) || 0
+                        });
+                        selectedVariable = null;
+                        drawingMode = false;
+                        document.getElementById('drawing-mode-indicator').style.display = 'none';
+                        drawVariables();
+                        updateRegressionFormulas();
+                    }
                 }
             }
+        }
+
+        function updateRegressionFormulas() {
+            const formulaDisplay = document.getElementById('formula-display');
+            formulaDisplay.innerHTML = '';
+            
+            // Group relationships by target variable
+            const targetGroups = {};
+            relationships.forEach(rel => {
+                if (!targetGroups[rel.target.name]) {
+                    targetGroups[rel.target.name] = [];
+                }
+                targetGroups[rel.target.name].push({
+                    source: rel.source.name,
+                    coefficient: rel.coefficient
+                });
+            });
+            
+            // Create formula for each target variable
+            Object.entries(targetGroups).forEach(([targetName, sources]) => {
+                let formula = `${targetName} = `;
+                formula += sources.map(s => 
+                    `${s.coefficient >= 0 ? '+' : ''}${s.coefficient}${s.source}`
+                ).join(' ');
+                formula = formula.replace('= +', '= '); // Remove first + if present
+                formulaDisplay.innerHTML += formula + '<br>';
+            });
         }
 
         function updateCalculations() {
